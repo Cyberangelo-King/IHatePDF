@@ -14,6 +14,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6; /* Light gray background */
             color: #374151; /* Dark gray text */
+            overflow-x: hidden; /* Prevent horizontal scrolling on mobile */
         }
 
         /* Custom scrollbar for better aesthetics */
@@ -385,8 +386,9 @@
                             const id = crypto.randomUUID();
                             const reader = new FileReader();
                             reader.onload = async (e) => {
+                                let pdfDoc = null; // Declare pdfDoc here
                                 try {
-                                    const pdfDoc = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                                    pdfDoc = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                                     const pageCount = pdfDoc.numPages;
                                     this.mergeFiles.push({ id, name: file.name, file, pageCount, thumbnail: null });
                                     this.mergeFiles = [...this.mergeFiles]; // Trigger reactivity
@@ -396,6 +398,10 @@
                                 } catch (error) {
                                     console.error("Error loading PDF for thumbnail:", error);
                                     this.showToast(`Could not load PDF: ${file.name}. It might be corrupted or password-protected.`, 'error');
+                                } finally {
+                                    if (pdfDoc) {
+                                        pdfDoc.destroy(); // Release memory
+                                    }
                                 }
                             };
                             reader.readAsArrayBuffer(file);
@@ -419,8 +425,9 @@
 
                     const fileReader = new FileReader();
                     fileReader.onload = async (e) => {
+                        let pdf = null; // Declare pdf here
                         try {
-                            const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                            pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                             const page = await pdf.getPage(1); // Get the first page
                             const viewport = page.getViewport({ scale: 0.5 }); // Adjust scale for thumbnail
                             const context = canvas.getContext('2d');
@@ -438,6 +445,10 @@
                             context.textAlign = "center";
                             context.fillText("Error rendering", canvas.width / 2, canvas.height / 2 - 10);
                             context.fillText("thumbnail", canvas.width / 2, canvas.height / 2 + 10);
+                        } finally {
+                            if (pdf) {
+                                pdf.destroy(); // Release memory
+                            }
                         }
                     };
                     fileReader.readAsArrayBuffer(file);
@@ -508,7 +519,6 @@
                     this.showToast('Merging PDFs...', 'info', 5000);
 
                     try {
-                        // Corrected: pdfLib is available globally as PDFLib (uppercase P)
                         const { PDFDocument } = PDFLib;
                         const mergedPdf = await PDFDocument.create();
                         let completedFiles = 0;
@@ -571,8 +581,9 @@
                         fileReader.readAsArrayBuffer(this.extractFile.file);
 
                         fileReader.onload = async (e) => {
+                            let pdf = null; // Declare pdf here
                             try {
-                                const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                                pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                                 const numPages = pdf.numPages;
                                 const scale = parseFloat(this.imageQuality);
                                 let completedPages = 0;
@@ -604,8 +615,9 @@
                                 }
                                 this.showToast(`Failed to extract images: ${errorMessage}`, 'error');
                             } finally {
-                                this.isProcessing = false;
-                                this.processingProgress = 0;
+                                if (pdf) {
+                                    pdf.destroy(); // Release memory
+                                }
                             }
                         };
                     } catch (error) {
@@ -744,30 +756,30 @@
     </template>
 
     <!-- Header -->
-    <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center">
-        <h1 class="text-3xl font-bold text-indigo-600">IHatePDF</h1>
-        <nav>
+    <header class="bg-white shadow-sm py-3 px-4 sm:py-4 sm:px-6 flex flex-col sm:flex-row justify-center sm:justify-between items-center">
+        <h1 class="text-3xl font-bold text-indigo-600 mb-2 sm:mb-0">IHatePDF</h1>
+        <nav class="flex flex-wrap justify-center sm:justify-end gap-2">
             <button @click="activeTab = 'merge'" :class="{'bg-indigo-100 text-indigo-700': activeTab === 'merge', 'text-gray-600 hover:bg-gray-100': activeTab !== 'merge'}"
                 class="px-4 py-2 rounded-lg font-medium transition-colors duration-200">
                 <i class="fas fa-compress-arrows-alt mr-2"></i>Merge PDFs
             </button>
             <button @click="activeTab = 'extract'" :class="{'bg-indigo-100 text-indigo-700': activeTab === 'extract', 'text-gray-600 hover:bg-gray-100': activeTab !== 'extract'}"
-                class="px-4 py-2 rounded-lg font-medium transition-colors duration-200 ml-2">
+                class="px-4 py-2 rounded-lg font-medium transition-colors duration-200">
                 <i class="fas fa-image mr-2"></i>Extract Images
             </button>
         </nav>
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-grow container mx-auto p-6">
+    <main class="flex-grow container mx-auto p-4 sm:p-6">
         <!-- Merge PDFs Section -->
-        <section x-show="activeTab === 'merge'" class="bg-white rounded-xl shadow-lg p-8">
+        <section x-show="activeTab === 'merge'" class="bg-white rounded-xl shadow-lg p-4 sm:p-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6">Merge PDFs</h2>
 
             <!-- File Upload Zone -->
             <div @dragover.prevent="isDragOver = true" @dragleave="isDragOver = false" @drop.prevent="handleDrop($event, 'merge')"
                 :class="{'drag-over': isDragOver, 'invalid': showInvalidFileWarning}"
-                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-8 text-center cursor-pointer mb-8 transition-all duration-300">
+                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-4 sm:p-8 text-center cursor-pointer mb-8 transition-all duration-300">
                 <input type="file" @change="handleFileSelect($event, 'merge')" multiple accept=".pdf" class="hidden" x-ref="mergeFileInput">
                 <p class="text-indigo-600 text-lg font-medium mb-2">Drag & Drop PDFs here</p>
                 <p class="text-gray-500 mb-4">or</p>
@@ -828,13 +840,13 @@
         </section>
 
         <!-- Extract Images Section -->
-        <section x-show="activeTab === 'extract'" class="bg-white rounded-xl shadow-lg p-8">
+        <section x-show="activeTab === 'extract'" class="bg-white rounded-xl shadow-lg p-4 sm:p-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6">Extract Images from PDF</h2>
 
             <!-- File Upload Zone for Extraction -->
             <div @dragover.prevent="isDragOver = true" @dragleave="isDragOver = false" @drop.prevent="handleDrop($event, 'extract')"
                 :class="{'drag-over': isDragOver, 'invalid': showInvalidFileWarning}"
-                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-8 text-center cursor-pointer mb-8 transition-all duration-300">
+                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-4 sm:p-8 text-center cursor-pointer mb-8 transition-all duration-300">
                 <input type="file" @change="handleFileSelect($event, 'extract')" accept=".pdf" class="hidden" x-ref="extractFileInput">
                 <p class="text-indigo-600 text-lg font-medium mb-2">Drag & Drop ONE PDF here</p>
                 <p class="text-gray-500 mb-4">or</p>
@@ -904,7 +916,7 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-4 px-6 text-center text-sm mt-auto">
         <p>&copy; 2025 IHatePDF. All rights reserved.</p>
-        <p class="mt-1">Made with ❤️ by Angelo (The Web Maven)</p>
+        <p class="mt-1">Made by Angelo (The Web Maven)</p>
     </footer>
 
     <!-- Toast Notification Container -->
