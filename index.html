@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IHatePDF - PDF Fusion Studio</title>
+    <!-- Inlined Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS for IHatePDF */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            color: #374151; /* Dark gray text */
+        }
+
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Primary color variables */
+        :root {
+            --primary: #4f46e5; /* Indigo 600 */
+            --primary-dark: #4338ca; /* Indigo 700 */
+            --primary-light: #6366f1; /* Indigo 500 */
+            --accent: #10b981; /* Emerald 500 */
+            --danger: #ef4444; /* Red 500 */
+        }
+
+        /* Drag & Drop Zone Styles */
+        .drop-zone {
+            border: 2px dashed var(--primary-light);
+            background-color: #eff6ff; /* Blue 50 */
+            transition: all 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: #e0e7ff; /* Blue 100 */
+            border-color: var(--primary);
+            transform: scale(1.02);
+        }
+        .drop-zone.invalid {
+            animation: shake 0.3s;
+            border-color: var(--danger);
+            background-color: #fee2e2; /* Red 100 */
+        }
+
+        /* File Card Styles */
+        .file-card {
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s ease-in-out;
+            transform-style: preserve-3d; /* For 3D tilt */
+            perspective: 1000px; /* For 3D tilt */
+        }
+        .file-card:hover {
+            transform: translateY(-5px) perspective(1000px) rotateX(2deg) rotateY(2deg); /* Subtle 3D tilt */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .file-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .file-card.drag-over-target {
+            border: 2px solid var(--primary);
+            transform: scale(1.05);
+        }
+
+        /* Button Styles & Microinteractions */
+        .btn-primary {
+            background-color: var(--primary);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .btn-primary .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
+            animation: ripple-effect 0.6s linear;
+            transform: scale(0);
+            opacity: 1;
+        }
+        @keyframes ripple-effect {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        .btn-primary .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Confetti Animation (simplified) */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1000;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent); /* Emerald */
+            opacity: 0;
+            animation: confetti-fall 2s forwards;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column-reverse; /* Newest on top */
+            gap: 0.5rem;
+        }
+        .toast {
+            background-color: #333;
+            color: #fff;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: slide-in-right 0.3s ease-out forwards, fade-out 0.3s ease-out 2.7s forwards;
+            min-width: 250px;
+        }
+        .toast.error {
+            background-color: var(--danger);
+        }
+        .toast.success {
+            background-color: var(--accent);
+        }
+        @keyframes slide-in-right {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* Onboarding Styles */
+        #onboarding-flow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .onboarding-step {
+            background-color: #fff;
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            animation: pop-in 0.3s ease-out;
+        }
+        @keyframes pop-in {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .pulse-animation {
+            width: 50px;
+            height: 50px;
+            background-color: var(--primary-light);
+            border-radius: 50%;
+            margin: 1rem auto;
+            animation: pulse-onboarding 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse-onboarding {
+            0% { transform: scale(0.8); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.7; }
+        }
+        .drag-demo {
+            width: 150px;
+            height: 80px;
+            background-color: var(--primary-light);
+            border-radius: 0.5rem;
+            margin: 1rem auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .drag-demo::before {
+            content: '📄';
+            font-size: 3rem;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: drag-move 2s infinite ease-in-out;
+        }
+        @keyframes drag-move {
+            0% { transform: translate(-70%, -50%); }
+            50% { transform: translate(70%, -50%); }
+            100% { transform: translate(-70%, -50%); }
+        }
+
+        /* Shake animation for invalid files */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+    <!-- PDF.js library and worker -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // Set up PDF.js worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <!-- External libs (CDN) -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script>
+        // Define the Alpine.js app data before the Alpine.js script itself
+        // This ensures 'app' is registered before Alpine tries to bind it.
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('app', () => ({
+                activeTab: 'merge', // 'merge' or 'extract'
+                isDragOver: false,
+                showInvalidFileWarning: false,
+                mergeFiles: [], // Array of { id, name, file, pageCount, thumbnail }
+                extractFile: null, // { id, name, file }
+                extractedImages: [], // Array of { id, url, filename }
+                imageQuality: '1.0', // Scale factor for PDF.js rendering
+                mergedFilename: 'merged-documents-' + new Date().getFullYear() + '.pdf',
+                isProcessing: false,
+                processingProgress: 0,
+                toasts: [],
+                toastIdCounter: 0,
+                selectedImages: [], // Array of image IDs for batch download
+
+                // Drag & Drop Reordering for Merge
+                draggingIndex: null,
+                dragOverIndex: null,
+
+                // Onboarding
+                showOnboarding: false,
+                currentOnboardingStep: 0,
+                onboardingSteps: [
+                    { title: '📤 Upload PDFs', description: 'Drag your PDF files into the designated area or click to browse and select them.', animation: '<div class="pulse-animation"></div>' },
+                    { title: '↕️ Reorder Documents', description: 'Once uploaded, drag and drop the PDF thumbnails to arrange them in your desired merging order.', animation: '<div class="drag-demo"></div>' },
+                    { title: '✨ Merge & Extract', description: 'Click the "Merge PDFs" button to combine them, or switch to "Extract Images" to get all images from a PDF.', animation: '<i class="fas fa-file-pdf text-6xl text-indigo-500"></i><i class="fas fa-arrow-right text-4xl text-gray-400 mx-4"></i><i class="fas fa-file-image text-6xl text-emerald-500"></i>' },
+                    { title: '✅ All Done!', description: 'Your processed files will be ready for instant download. Enjoy a seamless PDF experience!', animation: '<i class="fas fa-check-circle text-6xl text-green-500"></i>' }
+                ],
+
+                init() {
+                    // Check if onboarding has been completed
+                    if (!localStorage.getItem('ihatepdf_onboarding_completed')) {
+                        this.showOnboarding = true;
+                    }
+
+                    // Add ripple effect to buttons
+                    this.$nextTick(() => {
+                        document.querySelectorAll('.btn-primary').forEach(button => {
+                            button.addEventListener('click', (e) => {
+                                const rect = button.getBoundingClientRect();
+                                const size = Math.max(rect.width, rect.height);
+                                const x = e.clientX - rect.left - size / 2;
+                                const y = e.clientY - rect.top - size / 2;
+
+                                const ripple = document.createElement('span');
+                                ripple.classList.add('ripple');
+                                ripple.style.width = ripple.style.height = `${size}px`;
+                                ripple.style.left = `${x}px`;
+                                ripple.style.top = `${y}px`;
+                                button.appendChild(ripple);
+
+                                ripple.addEventListener('animationend', () => {
+                                    ripple.remove();
+                                });
+                            });
+                        });
+                    });
+                },
+
+                // Onboarding Methods
+                nextOnboardingStep() {
+                    if (this.currentOnboardingStep < this.onboardingSteps.length - 1) {
+                        this.currentOnboardingStep++;
+                    } else {
+                        this.skipOnboarding();
+                    }
+                },
+                skipOnboarding() {
+                    this.showOnboarding = false;
+                    localStorage.setItem('ihatepdf_onboarding_completed', 'true');
+                },
+
+                // Toast Notification System
+                showToast(message, type = 'info', duration = 3000) {
+                    const id = this.toastIdCounter++;
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(toast => toast.id !== id);
+                    }, duration);
+                    // Haptic feedback for success/error
+                    if (navigator.vibrate) {
+                        if (type === 'success') navigator.vibrate(100);
+                        else if (type === 'error') navigator.vibrate([200, 100, 200]);
+                    }
+                },
+
+                // File Handling
+                async handleFileSelect(event, type) {
+                    this.isDragOver = false;
+                    this.showInvalidFileWarning = false;
+                    const files = Array.from(event.target.files);
+                    await this.processFiles(files, type);
+                },
+
+                async handleDrop(event, type) {
+                    this.isDragOver = false;
+                    this.showInvalidFileWarning = false;
+                    const files = Array.from(event.dataTransfer.files);
+                    await this.processFiles(files, type);
+                },
+
+                async processFiles(files, type) {
+                    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+                    const invalidFiles = files.filter(file => file.type !== 'application/pdf');
+
+                    if (invalidFiles.length > 0) {
+                        this.showInvalidFileWarning = true;
+                        this.showToast('Only PDF files are allowed. Invalid files were ignored.', 'error');
+                    }
+
+                    if (type === 'merge') {
+                        for (const file of pdfFiles) {
+                            const id = crypto.randomUUID();
+                            const reader = new FileReader();
+                            reader.onload = async (e) => {
+                                try {
+                                    const pdfDoc = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                                    const pageCount = pdfDoc.numPages;
+                                    this.mergeFiles.push({ id, name: file.name, file, pageCount, thumbnail: null });
+                                    this.mergeFiles = [...this.mergeFiles]; // Trigger reactivity
+                                    this.$nextTick(() => {
+                                        this.renderPdfThumbnail(file, id);
+                                    });
+                                } catch (error) {
+                                    console.error("Error loading PDF for thumbnail:", error);
+                                    this.showToast(`Could not load PDF: ${file.name}. It might be corrupted or password-protected.`, 'error');
+                                }
+                            };
+                            reader.readAsArrayBuffer(file);
+                        }
+                    } else if (type === 'extract') {
+                        if (pdfFiles.length === 0) return;
+                        if (pdfFiles.length > 1) {
+                            this.showToast('Please select only one PDF for image extraction.', 'error');
+                            return;
+                        }
+                        this.extractFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+                        this.extractedImages = []; // Clear previous images
+                        this.selectedImages = []; // Clear selections
+                        await this.extractImages();
+                    }
+                },
+
+                async renderPdfThumbnail(file, id) {
+                    const canvas = document.getElementById(`pdf-thumbnail-${id}`);
+                    if (!canvas) return;
+
+                    const fileReader = new FileReader();
+                    fileReader.onload = async (e) => {
+                        try {
+                            const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                            const page = await pdf.getPage(1); // Get the first page
+                            const viewport = page.getViewport({ scale: 0.5 }); // Adjust scale for thumbnail
+                            const context = canvas.getContext('2d');
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+
+                            await page.render({ canvasContext: context, viewport: viewport }).promise;
+                        } catch (error) {
+                            console.error("Error rendering thumbnail:", error);
+                            // Fallback for corrupted/unrenderable PDFs
+                            const context = canvas.getContext('2d');
+                            context.clearRect(0, 0, canvas.width, canvas.height);
+                            context.font = "12px Inter";
+                            context.fillStyle = "#ef4444";
+                            context.textAlign = "center";
+                            context.fillText("Error rendering", canvas.width / 2, canvas.height / 2 - 10);
+                            context.fillText("thumbnail", canvas.width / 2, canvas.height / 2 + 10);
+                        }
+                    };
+                    fileReader.readAsArrayBuffer(file);
+                },
+
+                removeFile(id, type) {
+                    if (type === 'merge') {
+                        this.mergeFiles = this.mergeFiles.filter(file => file.id !== id);
+                        this.showToast('PDF removed.', 'info');
+                    }
+                },
+
+                clearExtractFile() {
+                    this.extractFile = null;
+                    this.extractedImages = [];
+                    this.selectedImages = [];
+                    this.showToast('Extracted PDF cleared.', 'info');
+                },
+
+                // Drag and Drop Reordering Logic
+                handleDragStart(event, index) {
+                    this.draggingIndex = index;
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', index);
+                    // Add a class to the dragged item for styling
+                    event.target.classList.add('dragging');
+                },
+                handleDragOver(event, index) {
+                    event.preventDefault();
+                    if (this.draggingIndex !== null && this.draggingIndex !== index) {
+                        this.dragOverIndex = index;
+                    }
+                },
+                handleDragLeave(event, index) {
+                    if (this.dragOverIndex === index) {
+                        this.dragOverIndex = null;
+                    }
+                },
+                handleDropReorder(event, targetIndex) {
+                    event.preventDefault();
+                    const draggedIndex = parseInt(event.dataTransfer.getData('text/plain'));
+
+                    if (draggedIndex !== targetIndex) {
+                        const [draggedItem] = this.mergeFiles.splice(draggedIndex, 1);
+                        this.mergeFiles.splice(targetIndex, 0, draggedItem);
+                        this.mergeFiles = [...this.mergeFiles]; // Trigger reactivity
+                        this.showToast('PDF order updated.', 'info');
+                    }
+                    this.dragOverIndex = null;
+                },
+                handleDragEnd(event) {
+                    this.draggingIndex = null;
+                    this.dragOverIndex = null;
+                    // Remove the dragging class from the element
+                    if (event && event.target) {
+                        event.target.classList.remove('dragging');
+                    }
+                },
+
+                // PDF Merging
+                async mergePdfs() {
+                    if (this.mergeFiles.length === 0) {
+                        this.showToast('Please upload PDFs to merge first.', 'error');
+                        return;
+                    }
+                    this.isProcessing = true;
+                    this.processingProgress = 0;
+                    this.showToast('Merging PDFs...', 'info', 5000);
+
+                    try {
+                        // Corrected: pdfLib is available globally as PDFLib (uppercase P)
+                        const { PDFDocument } = PDFLib;
+                        const mergedPdf = await PDFDocument.create();
+                        let completedFiles = 0;
+
+                        for (const mergeFile of this.mergeFiles) {
+                            const arrayBuffer = await mergeFile.file.arrayBuffer();
+                            const pdf = await PDFDocument.load(arrayBuffer);
+                            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                            copiedPages.forEach((page) => mergedPdf.addPage(page));
+                            completedFiles++;
+                            this.processingProgress = (completedFiles / this.mergeFiles.length) * 100 * 0.9; // 90% for merging
+                        }
+
+                        this.processingProgress = 95; // Almost done, generating bytes
+                        const mergedPdfBytes = await mergedPdf.save();
+                        this.processingProgress = 100; // Complete
+
+                        const filename = this.mergedFilename.endsWith('.pdf') ? this.mergedFilename : this.mergedFilename + '.pdf';
+                        saveAs(new Blob([mergedPdfBytes], { type: 'application/pdf' }), filename);
+
+                        this.showToast('PDFs merged successfully! Download started.', 'success');
+                        this.triggerConfetti();
+                        this.resetMergeState();
+                    } catch (error) {
+                        console.error("Error merging PDFs:", error);
+                        let errorMessage = 'An unexpected error occurred during merging.';
+                        if (error.message.includes('password-protected')) {
+                            errorMessage = 'One or more PDFs are password-protected and cannot be merged.';
+                        } else if (error.message.includes('corrupted')) {
+                            errorMessage = 'One or more PDFs are corrupted or invalid.';
+                        }
+                        this.showToast(`Failed to merge PDFs: ${errorMessage}`, 'error');
+                    } finally {
+                        this.isProcessing = false;
+                        this.processingProgress = 0;
+                    }
+                },
+
+                resetMergeState() {
+                    this.mergeFiles = [];
+                    this.mergedFilename = 'merged-documents-' + new Date().getFullYear() + '.pdf';
+                },
+
+                // Image Extraction
+                async extractImages() {
+                    if (!this.extractFile) {
+                        this.extractedImages = [];
+                        this.selectedImages = [];
+                        return;
+                    }
+
+                    this.isProcessing = true;
+                    this.processingProgress = 0;
+                    this.extractedImages = [];
+                    this.selectedImages = [];
+                    this.showToast('Extracting images...', 'info', 5000);
+
+                    try {
+                        const fileReader = new FileReader();
+                        fileReader.readAsArrayBuffer(this.extractFile.file);
+
+                        fileReader.onload = async (e) => {
+                            try {
+                                const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                                const numPages = pdf.numPages;
+                                const scale = parseFloat(this.imageQuality);
+                                let completedPages = 0;
+
+                                for (let i = 1; i <= numPages; i++) {
+                                    const page = await pdf.getPage(i);
+                                    const viewport = page.getViewport({ scale: scale });
+                                    const canvas = document.createElement('canvas');
+                                    const context = canvas.getContext('2d');
+                                    canvas.height = viewport.height;
+                                    canvas.width = viewport.width;
+
+                                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                                    const imageUrl = canvas.toDataURL('image/png');
+                                    const filename = `${this.extractFile.name.replace('.pdf', '')}_page_${i}.png`;
+
+                                    this.extractedImages.push({ id: crypto.randomUUID(), url: imageUrl, filename: filename });
+                                    completedPages++;
+                                    this.processingProgress = (completedPages / numPages) * 100;
+                                }
+                                this.showToast('Images extracted successfully!', 'success');
+                            } catch (error) {
+                                console.error("Error extracting images:", error);
+                                let errorMessage = 'An unexpected error occurred during image extraction.';
+                                if (error.message.includes('password-protected')) {
+                                    errorMessage = 'This PDF is password-protected and images cannot be extracted.';
+                                } else if (error.message.includes('corrupted')) {
+                                    errorMessage = 'This PDF is corrupted or invalid.';
+                                }
+                                this.showToast(`Failed to extract images: ${errorMessage}`, 'error');
+                            } finally {
+                                this.isProcessing = false;
+                                this.processingProgress = 0;
+                            }
+                        };
+                    } catch (error) {
+                        console.error("Error reading PDF file for extraction:", error);
+                        this.showToast('Failed to read PDF file for extraction.', 'error');
+                        this.isProcessing = false;
+                        this.processingProgress = 0;
+                    }
+                },
+
+                toggleImageSelection(imageId, event) {
+                    // Check for Shift-click for batch selection
+                    if (event.shiftKey && this.selectedImages.length > 0) {
+                        const lastSelectedId = this.selectedImages[this.selectedImages.length - 1];
+                        const lastSelectedIndex = this.extractedImages.findIndex(img => img.id === lastSelectedId);
+                        const currentIndex = this.extractedImages.findIndex(img => img.id === imageId);
+
+                        if (lastSelectedIndex !== -1 && currentIndex !== -1) {
+                            const start = Math.min(lastSelectedIndex, currentIndex);
+                            const end = Math.max(lastSelectedIndex, currentIndex);
+                            for (let i = start; i <= end; i++) {
+                                const imgIdToAdd = this.extractedImages[i].id;
+                                if (!this.selectedImages.includes(imgIdToAdd)) {
+                                    this.selectedImages.push(imgIdToAdd);
+                                }
+                            }
+                        }
+                    } else {
+                        if (this.selectedImages.includes(imageId)) {
+                            this.selectedImages = this.selectedImages.filter(id => id !== imageId);
+                        } else {
+                            this.selectedImages.push(imageId);
+                        }
+                    }
+                },
+
+                selectAllImages() {
+                    this.selectedImages = this.extractedImages.map(img => img.id);
+                    this.showToast('All images selected.', 'info');
+                },
+
+                clearSelection() {
+                    this.selectedImages = [];
+                    this.showToast('Image selection cleared.', 'info');
+                },
+
+                downloadImage(url, filename) {
+                    saveAs(url, filename);
+                    this.showToast(`Downloading ${filename}...`, 'success');
+                },
+
+                async downloadSelectedImages() {
+                    if (this.selectedImages.length === 0) {
+                        this.showToast('Please select images to download first.', 'error');
+                        return;
+                    }
+                    this.isProcessing = true;
+                    this.showToast('Preparing ZIP for download...', 'info', 5000);
+
+                    try {
+                        const zip = new JSZip();
+                        let completedImages = 0;
+
+                        for (const imageId of this.selectedImages) {
+                            const image = this.extractedImages.find(img => img.id === imageId);
+                            if (image) {
+                                // Convert Data URL to Blob for JSZip
+                                const response = await fetch(image.url);
+                                const blob = await response.blob();
+                                zip.file(image.filename, blob);
+                                completedImages++;
+                                this.processingProgress = (completedImages / this.selectedImages.length) * 100;
+                            }
+                        }
+
+                        const content = await zip.generateAsync({ type: "blob" });
+                        saveAs(content, `${this.extractFile.name.replace('.pdf', '')}_images.zip`);
+                        this.showToast('Selected images zipped and downloaded!', 'success');
+                        this.selectedImages = []; // Clear selection after download
+                    } catch (error) {
+                        console.error("Error zipping images:", error);
+                        this.showToast('Failed to create ZIP file for download.', 'error');
+                    } finally {
+                        this.isProcessing = false;
+                        this.processingProgress = 0;
+                    }
+                },
+
+                // Confetti Animation
+                triggerConfetti() {
+                    const confettiContainer = document.createElement('div');
+                    confettiContainer.classList.add('confetti-container');
+                    document.body.appendChild(confettiContainer);
+
+                    for (let i = 0; i < 50; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.classList.add('confetti');
+                        confetti.style.left = `${Math.random() * 100}vw`;
+                        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+                        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                        confetti.style.animationDuration = `${1.5 + Math.random() * 1}s`;
+                        confettiContainer.appendChild(confetti);
+                    }
+
+                    setTimeout(() => {
+                        confettiContainer.remove();
+                    }, 3000); // Remove container after animation
+                }
+            }));
+        });
+    </script>
+    <!-- Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen flex flex-col" x-data="app()">
+    <!-- Onboarding Flow -->
+    <template x-if="showOnboarding">
+        <div id="onboarding-flow" class="hidden" :class="{ 'hidden': !showOnboarding }">
+            <div class="onboarding-step">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-800" x-text="onboardingSteps[currentOnboardingStep].title"></h3>
+                <p class="text-gray-600 mb-6" x-text="onboardingSteps[currentOnboardingStep].description"></p>
+                <div x-html="onboardingSteps[currentOnboardingStep].animation" class="mb-6"></div>
+                <div class="flex justify-between items-center">
+                    <button @click="skipOnboarding()" class="text-gray-500 hover:text-gray-700 text-sm">Skip</button>
+                    <div class="flex items-center space-x-2">
+                        <template x-for="(step, index) in onboardingSteps" :key="index">
+                            <span class="w-2 h-2 rounded-full" :class="{'bg-indigo-600': index === currentOnboardingStep, 'bg-gray-300': index !== currentOnboardingStep}"></span>
+                        </template>
+                    </div>
+                    <button @click="nextOnboardingStep()" class="btn-primary py-2 px-4 rounded-lg text-white font-medium">
+                        <span x-text="currentOnboardingStep === onboardingSteps.length - 1 ? 'Got it!' : 'Next'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-indigo-600">IHatePDF</h1>
+        <nav>
+            <button @click="activeTab = 'merge'" :class="{'bg-indigo-100 text-indigo-700': activeTab === 'merge', 'text-gray-600 hover:bg-gray-100': activeTab !== 'merge'}"
+                class="px-4 py-2 rounded-lg font-medium transition-colors duration-200">
+                <i class="fas fa-compress-arrows-alt mr-2"></i>Merge PDFs
+            </button>
+            <button @click="activeTab = 'extract'" :class="{'bg-indigo-100 text-indigo-700': activeTab === 'extract', 'text-gray-600 hover:bg-gray-100': activeTab !== 'extract'}"
+                class="px-4 py-2 rounded-lg font-medium transition-colors duration-200 ml-2">
+                <i class="fas fa-image mr-2"></i>Extract Images
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow container mx-auto p-6">
+        <!-- Merge PDFs Section -->
+        <section x-show="activeTab === 'merge'" class="bg-white rounded-xl shadow-lg p-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Merge PDFs</h2>
+
+            <!-- File Upload Zone -->
+            <div @dragover.prevent="isDragOver = true" @dragleave="isDragOver = false" @drop.prevent="handleDrop($event, 'merge')"
+                :class="{'drag-over': isDragOver, 'invalid': showInvalidFileWarning}"
+                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-8 text-center cursor-pointer mb-8 transition-all duration-300">
+                <input type="file" @change="handleFileSelect($event, 'merge')" multiple accept=".pdf" class="hidden" x-ref="mergeFileInput">
+                <p class="text-indigo-600 text-lg font-medium mb-2">Drag & Drop PDFs here</p>
+                <p class="text-gray-500 mb-4">or</p>
+                <button @click="$refs.mergeFileInput.click()" class="btn-primary py-2 px-6 rounded-lg text-white font-medium inline-flex items-center justify-center">
+                    <i class="fas fa-upload mr-2"></i>Browse Files
+                </button>
+                <p x-show="showInvalidFileWarning" class="text-red-500 mt-4 text-sm">Only PDF files are allowed. Invalid files were ignored.</p>
+            </div>
+
+            <!-- PDF List for Merging -->
+            <div x-show="mergeFiles.length > 0" class="mb-8">
+                <h3 class="text-xl font-medium text-gray-800 mb-4">Documents to Merge (<span x-text="mergeFiles.length"></span>)</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="pdf-list">
+                    <template x-for="(file, index) in mergeFiles" :key="file.id">
+                        <div class="file-card relative rounded-lg p-4 flex flex-col items-center justify-center shadow-md border border-gray-200"
+                            :draggable="true"
+                            @dragstart="handleDragStart($event, index)"
+                            @dragover.prevent="handleDragOver($event, index)"
+                            @dragleave="handleDragLeave($event, index)"
+                            @drop="handleDropReorder($event, index)"
+                            @dragend="handleDragEnd()"
+                            :class="{'dragging': draggingIndex === index, 'drag-over-target': dragOverIndex === index}">
+                            <canvas :id="'pdf-thumbnail-' + file.id" class="w-full h-40 object-contain rounded-md bg-gray-100 mb-3"></canvas>
+                            <span class="absolute top-2 right-2 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full" x-text="file.pageCount + ' pages'"></span>
+                            <p class="text-sm font-medium text-gray-700 truncate w-full text-center" x-text="file.name"></p>
+                            <button @click="removeFile(file.id, 'merge')" class="absolute bottom-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors duration-200">
+                                <i class="fas fa-trash-alt text-sm"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Merge Controls -->
+            <div x-show="mergeFiles.length > 0" class="flex flex-col sm:flex-row items-center justify-between mt-8 bg-gray-50 p-6 rounded-lg shadow-inner">
+                <div class="flex-grow mb-4 sm:mb-0 sm:mr-4">
+                    <label for="merge-filename" class="block text-sm font-medium text-gray-700 mb-2">Merged Filename</label>
+                    <input type="text" id="merge-filename" x-model="mergedFilename"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="e.g., my-merged-document.pdf">
+                </div>
+                <button @click="mergePdfs()" :disabled="isProcessing"
+                    class="btn-primary py-3 px-8 rounded-lg text-white font-bold text-lg flex items-center justify-center">
+                    <template x-if="!isProcessing">
+                        <i class="fas fa-handshake mr-3"></i>Merge PDFs
+                    </template>
+                    <template x-if="isProcessing">
+                        <span class="spinner mr-3"></span>Processing...
+                    </template>
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div x-show="isProcessing" class="w-full bg-gray-200 rounded-full h-3 mt-4 overflow-hidden">
+                <div class="bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out" :style="`width: ${processingProgress}%`"></div>
+            </div>
+            <p x-show="isProcessing" class="text-sm text-gray-600 text-center mt-2" x-text="`Progress: ${processingProgress.toFixed(0)}%`"></p>
+        </section>
+
+        <!-- Extract Images Section -->
+        <section x-show="activeTab === 'extract'" class="bg-white rounded-xl shadow-lg p-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Extract Images from PDF</h2>
+
+            <!-- File Upload Zone for Extraction -->
+            <div @dragover.prevent="isDragOver = true" @dragleave="isDragOver = false" @drop.prevent="handleDrop($event, 'extract')"
+                :class="{'drag-over': isDragOver, 'invalid': showInvalidFileWarning}"
+                class="drop-zone border-2 border-dashed border-indigo-300 rounded-xl p-8 text-center cursor-pointer mb-8 transition-all duration-300">
+                <input type="file" @change="handleFileSelect($event, 'extract')" accept=".pdf" class="hidden" x-ref="extractFileInput">
+                <p class="text-indigo-600 text-lg font-medium mb-2">Drag & Drop ONE PDF here</p>
+                <p class="text-gray-500 mb-4">or</p>
+                <button @click="$refs.extractFileInput.click()" class="btn-primary py-2 px-6 rounded-lg text-white font-medium inline-flex items-center justify-center">
+                    <i class="fas fa-upload mr-2"></i>Browse PDF
+                </button>
+                <p x-show="showInvalidFileWarning" class="text-red-500 mt-4 text-sm">Only a single PDF file is allowed. Invalid files were ignored.</p>
+            </div>
+
+            <!-- Extracted PDF Info -->
+            <div x-show="extractFile" class="bg-gray-50 p-6 rounded-lg shadow-inner mb-8">
+                <h3 class="text-xl font-medium text-gray-800 mb-4">Selected PDF: <span x-text="extractFile ? extractFile.name : ''"></span></h3>
+                <div class="flex items-center mb-4">
+                    <label for="image-quality" class="text-gray-700 mr-3">Image Quality:</label>
+                    <select id="image-quality" x-model="imageQuality" @change="extractImages()"
+                        class="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="0.5">Low (50%)</option>
+                        <option value="1.0">Medium (100%)</option>
+                        <option value="1.5">High (150%)</option>
+                        <option value="2.0">Very High (200%)</option>
+                    </select>
+                </div>
+                <button @click="clearExtractFile()" class="text-red-500 hover:text-red-700 text-sm">Clear PDF</button>
+            </div>
+
+            <!-- Image Gallery -->
+            <div x-show="extractedImages.length > 0">
+                <h3 class="text-xl font-medium text-gray-800 mb-4">Extracted Images (<span x-text="extractedImages.length"></span>)</h3>
+                <div class="mb-4 flex items-center space-x-4">
+                    <button @click="selectAllImages()" class="btn-primary py-2 px-4 rounded-lg text-white font-medium">
+                        <i class="fas fa-check-double mr-2"></i>Select All
+                    </button>
+                    <button @click="clearSelection()" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors duration-200">
+                        <i class="fas fa-times mr-2"></i>Clear Selection
+                    </button>
+                    <button @click="downloadSelectedImages()" :disabled="selectedImages.length === 0 || isProcessing"
+                        class="btn-primary py-2 px-4 rounded-lg text-white font-medium flex items-center justify-center">
+                        <template x-if="!isProcessing">
+                            <i class="fas fa-file-archive mr-2"></i>Download Selected (<span x-text="selectedImages.length"></span>)
+                        </template>
+                        <template x-if="isProcessing">
+                            <span class="spinner mr-2"></span>Zipping...
+                        </template>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <template x-for="(image, index) in extractedImages" :key="image.id">
+                        <div class="relative file-card rounded-lg overflow-hidden border border-gray-200"
+                            :class="{'border-indigo-600 ring-2 ring-indigo-300': selectedImages.includes(image.id)}"
+                            @click="toggleImageSelection(image.id, $event)">
+                            <img :src="image.url" :alt="'Page ' + (index + 1)" class="w-full h-40 object-contain bg-gray-100">
+                            <div class="p-2 text-center text-sm font-medium text-gray-700">Page <span x-text="index + 1"></span></div>
+                            <input type="checkbox" class="absolute top-2 left-2 w-5 h-5 rounded-md text-indigo-600 focus:ring-indigo-500"
+                                :checked="selectedImages.includes(image.id)">
+                            <button @click.stop="downloadImage(image.url, image.filename)" class="absolute bottom-2 right-2 bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-indigo-700 transition-colors duration-200">
+                                <i class="fas fa-download text-sm"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <p x-show="extractedImages.length === 0 && extractFile && !isProcessing" class="text-gray-500 text-center mt-4">No images extracted yet. Select a PDF above.</p>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-4 px-6 text-center text-sm mt-auto">
+        <p>&copy; 2025 IHatePDF. All rights reserved.</p>
+        <p class="mt-1">Made with ❤️ by Angelo (The Web Maven)</p>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast" :class="{'error': toast.type === 'error', 'success': toast.type === 'success'}">
+                <p x-text="toast.message"></p>
+            </div>
+        </template>
+    </div>
+
+    <!-- Font Awesome for Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js" crossorigin="anonymous"></script>
+</body>
+</html>
