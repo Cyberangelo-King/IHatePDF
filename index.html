@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IHatePDF</title>
+    <title>IHatePDF - PDF Fusion Studio</title>
     <!-- Inlined Tailwind CSS from CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -911,7 +911,7 @@
                 <div class="flex-grow mb-4 sm:mb-0 sm:mr-4">
                     <label for="merge-filename" class="block text-sm font-medium text-gray-700 mb-2">Merged Filename</label>
                     <input type="text" id="merge-filename" x-model="mergedFilename"
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base"
                         placeholder="e.g., my-merged-document.pdf">
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3">
@@ -962,7 +962,7 @@
                 <div class="flex flex-col sm:flex-row items-center mb-4">
                     <label for="image-quality" class="text-gray-700 mr-3 mb-2 sm:mb-0">Image Quality:</label>
                     <select id="image-quality" x-model="imageQuality" @change="extractImages()"
-                        class="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-auto">
+                        class="border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-auto text-base">
                         <option value="0.5">Low (50%)</option>
                         <option value="1.0">Medium (100%)</option>
                         <option value="1.5">High (150%)</option>
