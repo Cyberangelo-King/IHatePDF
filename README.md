@@ -10,7 +10,7 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 - **Privacy:** All processing is done client-side; no files are uploaded to any server.
 
 ## Technologies Used
-- [Tailwind CSS](https://tailwindcss.com/) for styling
+- [Tailwind CSS](https://tailwindcss.com/) for styling (pre-built CSS for production)
 - [Alpine.js](https://alpinejs.dev/) for UI interactivity
 - [PDF.js](https://mozilla.github.io/pdf.js/) for PDF rendering
 - [PDF-lib](https://pdf-lib.js.org/) for PDF merging
@@ -30,9 +30,28 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 4. **Sort for Mortgage:**
    - Click "Sort for Mortgage" to auto-arrange files by document type.
 
-## Accessibility & Compatibility
-- Works on all modern browsers, including iOS Safari.
+## Accessibility, SEO & Compatibility
+- Works on all modern browsers, including iOS Safari (with iOS-specific fixes).
 - Accessible buttons with `aria-label` attributes.
+- Open Graph and Twitter meta tags for rich social sharing.
+- All favicon and manifest files are referenced for cross-browser/device support.
+- SEO/social image (`IHatePDF.png`) included.
+
+## Project Structure
+- `index.html` — Main HTML file, optimized for production, SEO, and accessibility
+- `style.css` — Custom styles (minified, typo-free)
+- `app.js` — Alpine.js logic (minified, externalized)
+- `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png`, `apple-touch-icon.png` — Favicons
+- `site.webmanifest` — Web app manifest
+- `IHatePDF.png` — SEO/social sharing image
+- `android-chrome-192x192.png`, `android-chrome-512x512.png` — PWA icons
+
+## Production & Deployment
+- All assets are present and referenced in `index.html`.
+- Cache-busting query strings added to CSS/JS links for reliable updates.
+- Use minified versions of CSS and JS for best performance.
+- No server required; deploy as static files to any web host.
+- Fully optimized for SEO, accessibility, and cross-browser/device compatibility.
 
 ## Development & Customization
 - All custom styles are in `style.css`.
@@ -41,4 +60,5 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 
 ## Credits
 Made by Angelo (The Web Maven)
+
 
