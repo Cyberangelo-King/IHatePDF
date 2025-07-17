@@ -42,5 +42,3 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 ## Credits
 Made by Angelo (The Web Maven)
 
-## License
-This project is open source. See LICENSE if provided.
