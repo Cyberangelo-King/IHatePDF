@@ -222,7 +222,33 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-4 px-6 text-center text-sm mt-auto">
         <p>&copy; 2025 IHatePDF. All rights reserved.</p>
-        <p class="mt-1">Made by Angelo (The Web Maven)</p>
+        <p class="mt-1">
+            Made by 
+            <span class="font-semibold text-indigo-300 cursor-pointer relative group" tabindex="0"
+                  @click="showMeetMe = true; $nextTick(() => { $refs.meetMeTwitter.focus(); })"
+                  @keydown.enter.prevent="showMeetMe = true; $nextTick(() => { $refs.meetMeTwitter.focus(); })"
+                  @keydown.space.prevent="showMeetMe = true; $nextTick(() => { $refs.meetMeTwitter.focus(); })">
+                Angelo (The Web Maven)
+                <span class="meet-me-tooltip">Meet me</span>
+            </span>
+        </p>
+        <!-- Meet Me Modal -->
+        <div x-show="showMeetMe" x-transition.opacity class="meet-me-modal-overlay" @keydown.escape.window="showMeetMe = false" @click.away="showMeetMe = false" x-trap="showMeetMe">
+            <div class="meet-me-modal" @keydown.tab.prevent="trapTab($event)">
+                <button class="meet-me-close" @click="showMeetMe = false" aria-label="Close Meet Me">&times;</button>
+                <h3 class="meet-me-title">Meet Angelo</h3>
+                <p class="meet-me-desc">Connect with me on:</p>
+                <div class="meet-me-links">
+                    <a href="https://x.com/theangelo_king" target="_blank" rel="noopener" class="meet-me-link meet-me-twitter" x-ref="meetMeTwitter">
+                        <i class="fab fa-x-twitter text-lg"></i> Twitter (X)
+                    </a>
+                    <a href="https://github.com/Cyberangelo-King" target="_blank" rel="noopener" class="meet-me-link meet-me-github">
+                        <i class="fab fa-github text-lg"></i> GitHub
+                    </a>
+                </div>
+                <button @click="showMeetMe = false" class="meet-me-back">Go Back</button>
+            </div>
+        </div>
     </footer>
 
     <!-- Toast Notification Container -->
@@ -233,5 +259,33 @@
             </div>
         </template>
     </div>
+
+    <script>
+    // Add this script block at the end of the file or in app.js if you want to keep logic together
+    if (window.Alpine) {
+        Alpine.data('app', (origApp = window.app) => ({
+            ...(typeof origApp === 'function' ? origApp() : {}),
+            showMeetMe: false,
+            trapTab(e) {
+                // Focus trap for modal accessibility
+                const focusable = Array.from(document.querySelectorAll('[x-ref=meetMeTwitter], [x-ref=meetMeGithub], [x-ref=meetMeClose], [x-ref=meetMeGoBack]')).filter(el => el.offsetParent !== null);
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        last.focus();
+                        e.preventDefault();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        first.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        }));
+    }
+    </script>
 </body>
 </html>

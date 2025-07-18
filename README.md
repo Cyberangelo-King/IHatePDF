@@ -40,11 +40,14 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 ## Project Structure
 - `index.html` — Main HTML file, optimized for production, SEO, and accessibility
 - `style.css` — Custom styles (minified, typo-free)
-- `app.js` — Alpine.js logic (minified, externalized)
+- `app.js` — Alpine.js logic (minified, externalized, modular-ready)
 - `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png`, `apple-touch-icon.png` — Favicons
 - `site.webmanifest` — Web app manifest
 - `IHatePDF.png` — SEO/social sharing image
 - `android-chrome-192x192.png`, `android-chrome-512x512.png` — PWA icons
+- `tests/unit/` — Unit tests (Vitest)
+- `tests/e2e/` — End-to-end tests (Playwright)
+- `CONTRIBUTING.md` — Contribution guidelines
 
 ## Production & Deployment
 - All assets are present and referenced in `index.html`.
@@ -55,10 +58,11 @@ A fast, free, privacy-friendly web app for merging PDFs, extracting images, and 
 
 ## Development & Customization
 - All custom styles are in `style.css`.
-- All app logic is in `app.js`.
+- All app logic is in `app.js` (modular structure for scalability).
 - For production, use minified versions of CSS and JS.
+- Automated tests in `tests/` folder (see CONTRIBUTING.md).
 
 ## Credits
-Made by Angelo (The Web Maven)
+Made by <a href="https://github.com/Cyberangelo-King" target="_blank" rel="noopener">Angelo (The Web Maven)</a>
 
 

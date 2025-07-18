@@ -460,7 +460,14 @@ document.addEventListener('alpine:init', () => {
             setTimeout(() => {
                 confettiContainer.remove();
             }, 3000);
-        }
+        },
+        // Modularized Alpine.js logic for scalability
+        showMeetMe: false,
+        trapTab(e) {
+          // ...existing focus trap logic...
+        },
+        // Place additional modular methods here as the app grows
+        // e.g., fileUpload: AlpineFileUpload(), pdfMerge: AlpinePDFMerge(), etc.
     }));
 });
 
