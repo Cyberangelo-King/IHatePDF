@@ -2,6 +2,8 @@
 
 A fast, free, privacy-friendly web app for merging PDFs, extracting images, and sorting documents for mortgage applications.
 
+[View it live here](https://i-hate-pdf.netlify.app/)
+
 ## Features
 - **Merge PDFs:** Drag & drop or browse to upload multiple PDF files and merge them into one.
 - **Extract Images:** Select a PDF and extract all images as PNG files, with batch download as ZIP.
