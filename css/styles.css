@@ -1,0 +1,82 @@
+/* Custom Styles for My Morning Routine */
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.modal {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 50;
+}
+
+.modal .modal-content {
+    transition: transform 0.3s ease;
+    transform: scale(0.95);
+}
+
+.modal:not(.hidden) .modal-content {
+    transform: scale(1);
+}
+
+.modal.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.modal.hidden .modal-content {
+    transform: scale(0.95);
+}
+
+.task-item.dragging {
+    opacity: 0.5;
+    background: #cde4ff;
+}
+
+/* Pomodoro Timer Styles */
+#pomodoro-timer {
+    text-align: center;
+}
+
+#pomodoro-time {
+    font-size: 4rem;
+    font-weight: bold;
+}
+
+#pomodoro-controls button {
+    margin: 0 0.5rem;
+}
+
+/* Puzzle Game Styles */
+#puzzle-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    width: 300px;
+    height: 300px;
+    margin: 1rem auto;
+    padding: 5px;
+    background: #4a5568;
+    border-radius: 8px;
+}
+
+.puzzle-tile {
+    background-color: #2d3748;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.puzzle-tile:hover {
+    background-color: #718096;
+}
+
+.puzzle-tile.empty {
+    background-color: transparent;
+    cursor: default;
+}
