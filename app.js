@@ -1,6 +1,8 @@
 // PDF.js library and worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('app', () => ({
         activeTab: 'merge',
@@ -726,7 +728,7 @@ document.addEventListener('alpine:init', () => {
             formData.append('password', this.unlockPassword);
 
             try {
-                const response = await fetch('/unlock', {
+                const response = await fetch(`${backendUrl}/unlock`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -758,7 +760,7 @@ document.addEventListener('alpine:init', () => {
             formData.append('file', this.compressFile.file);
 
             try {
-                const response = await fetch('/compress', {
+                const response = await fetch(`${backendUrl}/compress`, {
                     method: 'POST',
                     body: formData,
                 });
@@ -791,7 +793,7 @@ document.addEventListener('alpine:init', () => {
             formData.append('conversionType', this.conversionType);
 
             try {
-                const response = await fetch('/convert', {
+                const response = await fetch(`${backendUrl}/convert`, {
                     method: 'POST',
                     body: formData,
                 });

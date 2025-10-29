@@ -47,6 +47,7 @@ A full-featured, client-side PDF toolkit. Merge, split, sort, sign, annotate, fi
 ## Documentation
 - See `/docs/PRD-v2.md` for product requirements
 - See `/docs/CHANGELOG.md` for changes
+- See `DEPLOYMENT.md` for deployment instructions
 
 ## License
 MIT
