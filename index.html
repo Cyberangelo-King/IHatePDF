@@ -6,6 +6,7 @@
     <title>IHatePDF v2.0</title>
     <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -20,8 +21,174 @@
     <meta property="og:image" content="IHatePDF.png">
     <meta name="twitter:image" content="IHatePDF.png">
 </head>
-<body>
-    <div id="root"></div>
-    <script type="module" src="./src/main.js"></script>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div id="root" x-data="app" class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 shadow-md">
+            <div class="p-4">
+                <img src="IHatePDF.png" alt="Logo" class="w-32 mx-auto">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#" @click.prevent="activeTab = 'merge'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'merge' }">Merge</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'split'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'split' }">Split</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'protect'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'protect' }">Protect</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'unlock'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'unlock' }">Unlock</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'sign'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'sign' }">Sign</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'compress'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'compress' }">Compress</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'convert'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'convert' }">Convert</a></li>
+                    <li><a href="#" @click.prevent="activeTab = 'extract'" class="block p-4" :class="{ 'bg-red-500 text-white': activeTab === 'extract' }">Extract Images</a></li>
+                </ul>
+            </nav>
+            <div class="p-4">
+                <select x-model="theme" @change="applyTheme(theme)" class="w-full p-2 border rounded">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <div x-show="activeTab === 'merge'">
+                <div class="p-4">
+                    <div @dragover.prevent="isDragOver = true" @dragleave.prevent="isDragOver = false" @drop.prevent="handleDrop($event, 'merge')"
+                        :class="{'bg-green-100 border-green-400': isDragOver}" class="border-2 border-dashed rounded-lg p-8 text-center">
+                        <p>Drag and drop PDF files here, or</p>
+                        <input type="file" @change="handleFileSelect($event, 'merge')" multiple class="mt-4">
+                        <template x-if="showInvalidFileWarning">
+                            <p class="text-red-500 mt-2">Warning: Only PDF files are allowed. Non-PDF files have been ignored.</p>
+                        </template>
+                    </div>
+                    <div class="mt-4">
+                        <template x-for="(file, index) in mergeFiles" :key="file.id">
+                            <div class="flex items-center justify-between p-2 border-b"
+                                :draggable="true" @dragstart="handleDragStart($event, index)" @dragover="handleDragOver($event, index)" @dragleave="handleDragLeave($event, index)" @drop="handleDropReorder($event, index)" @dragend="handleDragEnd($event)">
+                                <div class="flex items-center">
+                                    <canvas :id="'pdf-thumbnail-' + file.id" class="w-16 h-16 mr-4"></canvas>
+                                    <span x-text="file.name"></span>
+                                </div>
+                                <button @click="removeFile(file.id, 'merge')" class="text-red-500">Remove</button>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4">
+                        <input type="text" x-model="mergedFilename" placeholder="Enter merged filename" class="p-2 border rounded w-full">
+                        <button @click="mergePdfs" class="mt-4 bg-blue-500 text-white p-2 rounded">Merge PDFs</button>
+                        <button @click="sortForMortgage" class="mt-4 bg-indigo-500 text-white p-2 rounded">Sort for Mortgage</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'split'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'split')">
+                    <div x-show="splitFile">
+                        <p x-text="splitFile.name"></p>
+                        <input type="text" x-model="splitPageRanges" placeholder="e.g., 1-3, 5, 7-9">
+                        <button @click="splitPdf">Split PDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'convert'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'convert')">
+                    <div x-show="convertFile">
+                        <p x-text="convertFile.name"></p>
+                        <select x-model="conversionType">
+                            <option value="pdf-to-word">PDF to Word</option>
+                            <option value="word-to-pdf">Word to PDF</option>
+                            <option value="pdf-to-jpg">PDF to JPG</option>
+                            <option value="jpg-to-pdf">JPG to PDF</option>
+                        </select>
+                        <button @click="convertPdf">Convert</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'compress'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'compress')">
+                    <div x-show="compressFile">
+                        <p x-text="compressFile.name"></p>
+                        <button @click="compressPdf">Compress PDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'unlock'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'unlock')">
+                    <div x-show="unlockFile">
+                        <p x-text="unlockFile.name"></p>
+                        <input type="password" x-model="unlockPassword" placeholder="Enter password">
+                        <button @click="unlockPdf">Unlock PDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'protect'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'protect')">
+                    <div x-show="protectFile">
+                        <p x-text="protectFile.name"></p>
+                        <input type="password" x-model="pdfPassword" placeholder="Enter password">
+                        <button @click="protectPdf">Protect PDF</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'extract'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'extract')">
+                    <div x-show="extractFile">
+                        <p x-text="extractFile.name"></p>
+                        <div class="mt-4">
+                            <label for="imageQuality">Image Quality:</label>
+                            <select id="imageQuality" x-model="imageQuality" @change="extractImages">
+                                <option value="0.5">Low</option>
+                                <option value="1.0">Medium</option>
+                                <option value="2.0">High</option>
+                            </select>
+                        </div>
+                        <div class="mt-4 grid grid-cols-4 gap-4">
+                            <template x-for="image in extractedImages" :key="image.id">
+                                <div class="relative">
+                                    <img :src="image.url" class="w-full h-auto">
+                                    <input type="checkbox" :value="image.id" x-model="selectedImages" class="absolute top-2 left-2">
+                                </div>
+                            </template>
+                        </div>
+                        <div class="mt-4">
+                            <button @click="selectAllImages">Select All</button>
+                            <button @click="clearSelection">Clear Selection</button>
+                            <button @click="downloadSelectedImages">Download Selected</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="activeTab === 'sign'">
+                <div class="p-4">
+                    <input type="file" @change="handleFileSelect($event, 'sign')">
+                    <div x-show="signFile">
+                        <p x-text="signFile.name"></p>
+                        <canvas id="signature-pad" class="border"></canvas>
+                        <button @click="clearSignature">Clear</button>
+                        <button @click="saveSignature">Save Signature</button>
+                        <input type="file" @change="handleSignatureUpload($event)">
+                        <button @click="signPdf">Sign PDF</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>

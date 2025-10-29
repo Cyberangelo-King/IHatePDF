@@ -51,4 +51,6 @@ A full-featured, client-side PDF toolkit. Merge, split, sort, sign, annotate, fi
 ## License
 MIT
 
+## Author
+This project was created by Angelo.
 

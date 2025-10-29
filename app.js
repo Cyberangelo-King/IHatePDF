@@ -4,9 +4,21 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 document.addEventListener('alpine:init', () => {
     Alpine.data('app', () => ({
         activeTab: 'merge',
+        theme: 'system',
         isDragOver: false,
         showInvalidFileWarning: false,
         mergeFiles: [],
+        splitFile: null,
+        splitPageRanges: '',
+        protectFile: null,
+        pdfPassword: '',
+        signFile: null,
+        signatureData: null,
+        unlockFile: null,
+        unlockPassword: '',
+        compressFile: null,
+        convertFile: null,
+        conversionType: 'pdf-to-word',
         extractFile: null,
         extractedImages: [],
         imageQuality: '1.0',
@@ -46,10 +58,20 @@ document.addEventListener('alpine:init', () => {
             { name: "Expression of disbursement", keywords: ["disbursement expression", "disbursement", "expression of disbursement"] }
         ],
         init() {
+            this.theme = localStorage.getItem('theme') || 'system';
+            this.applyTheme(this.theme);
+
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (this.theme === 'system') {
+                    this.applyTheme('system');
+                }
+            });
+
             if (!localStorage.getItem('ihatepdf_onboarding_completed')) {
                 this.showOnboarding = true;
             }
             this.$nextTick(() => {
+                this.initSignaturePad();
                 document.querySelectorAll('.btn-primary').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const rect = button.getBoundingClientRect();
@@ -68,6 +90,16 @@ document.addEventListener('alpine:init', () => {
                     });
                 });
             });
+        },
+        applyTheme(theme) {
+            this.theme = theme;
+            localStorage.setItem('theme', theme);
+
+            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         },
         nextOnboardingStep() {
             if (this.currentOnboardingStep < this.onboardingSteps.length - 1) {
@@ -145,6 +177,48 @@ document.addEventListener('alpine:init', () => {
                 this.extractedImages = [];
                 this.selectedImages = [];
                 await this.extractImages();
+            } else if (type === 'split') {
+                if (pdfFiles.length === 0) return;
+                if (pdfFiles.length > 1) {
+                    this.showToast('Please select only one PDF for splitting.', 'error');
+                    return;
+                }
+                this.splitFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+            } else if (type === 'protect') {
+                if (pdfFiles.length === 0) return;
+                if (pdfFiles.length > 1) {
+                    this.showToast('Please select only one PDF for password protection.', 'error');
+                    return;
+                }
+                this.protectFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+            } else if (type === 'sign') {
+                if (pdfFiles.length === 0) return;
+                if (pdfFiles.length > 1) {
+                    this.showToast('Please select only one PDF for signing.', 'error');
+                    return;
+                }
+                this.signFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+            } else if (type === 'unlock') {
+                if (pdfFiles.length === 0) return;
+                if (pdfFiles.length > 1) {
+                    this.showToast('Please select only one PDF for unlocking.', 'error');
+                    return;
+                }
+                this.unlockFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+            } else if (type === 'compress') {
+                if (pdfFiles.length === 0) return;
+                if (pdfFiles.length > 1) {
+                    this.showToast('Please select only one PDF for compression.', 'error');
+                    return;
+                }
+                this.compressFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
+            } else if (type === 'convert') {
+                if (files.length === 0) return;
+                if (files.length > 1) {
+                    this.showToast('Please select only one file for conversion.', 'error');
+                    return;
+                }
+                this.convertFile = { id: crypto.randomUUID(), name: files[0].name, file: files[0] };
             }
         },
         async renderPdfThumbnail(file, id) {
@@ -467,7 +541,280 @@ document.addEventListener('alpine:init', () => {
           // ...existing focus trap logic...
         },
         // Place additional modular methods here as the app grows
-        // e.g., fileUpload: AlpineFileUpload(), pdfMerge: AlpinePDFMerge(), etc.
+        async splitPdf() {
+            if (!this.splitFile) {
+                this.showToast('Please select a PDF to split.', 'error');
+                return;
+            }
+            if (!this.splitPageRanges) {
+                this.showToast('Please enter the page ranges to extract.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.processingProgress = 0;
+            this.showToast('Splitting PDF...', 'info', 5000);
+
+            try {
+                const { PDFDocument } = PDFLib;
+                const arrayBuffer = await this.splitFile.file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const newPdf = await PDFDocument.create();
+
+                const pageIndices = this.parsePageRanges(this.splitPageRanges, pdfDoc.getPageCount());
+
+                for (const pageIndex of pageIndices) {
+                    const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageIndex]);
+                    newPdf.addPage(copiedPage);
+                }
+
+                const pdfBytes = await newPdf.save();
+                saveAs(new Blob([pdfBytes], { type: 'application/pdf' }), `split_${this.splitFile.name}`);
+                this.showToast('PDF split successfully!', 'success');
+            } catch (error) {
+                console.error("Error splitting PDF:", error);
+                this.showToast('Failed to split PDF.', 'error');
+            } finally {
+                this.isProcessing = false;
+                this.processingProgress = 0;
+            }
+        },
+
+        parsePageRanges(ranges, maxPage) {
+            const indices = new Set();
+            const parts = ranges.split(',');
+            for (const part of parts) {
+                if (part.includes('-')) {
+                    const [start, end] = part.split('-').map(Number);
+                    for (let i = start; i <= end; i++) {
+                        if (i > 0 && i <= maxPage) {
+                            indices.add(i - 1);
+                        }
+                    }
+                } else {
+                    const page = Number(part);
+                    if (page > 0 && page <= maxPage) {
+                        indices.add(page - 1);
+                    }
+                }
+            }
+            return Array.from(indices);
+        },
+        async protectPdf() {
+            if (!this.protectFile) {
+                this.showToast('Please select a PDF to protect.', 'error');
+                return;
+            }
+            if (!this.pdfPassword) {
+                this.showToast('Please enter a password.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.showToast('Protecting PDF...', 'info');
+
+            try {
+                const { PDFDocument } = PDFLib;
+                const arrayBuffer = await this.protectFile.file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+                await pdfDoc.save({
+                    useObjectStreams: false,
+                    addDefaultFont: false,
+                    encrypt: {
+                        ownerPassword: this.pdfPassword,
+                        userPassword: this.pdfPassword,
+                        permissions: {
+                            printing: 'highResolution',
+                            modifying: false,
+                            copying: false,
+                            annotating: false,
+                            fillingForms: false,
+                            contentAccessibility: false,
+                            documentAssembly: false,
+                        },
+                    },
+                });
+
+                const pdfBytes = await pdfDoc.save();
+                saveAs(new Blob([pdfBytes], { type: 'application/pdf' }), `protected_${this.protectFile.name}`);
+                this.showToast('PDF protected successfully!', 'success');
+            } catch (error) {
+                console.error("Error protecting PDF:", error);
+                this.showToast('Failed to protect PDF.', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+        initSignaturePad() {
+            const canvas = document.getElementById('signature-pad');
+            this.signaturePad = new SignaturePad(canvas);
+        },
+        clearSignature() {
+            this.signaturePad.clear();
+            this.signatureData = null;
+        },
+        saveSignature() {
+            if (this.signaturePad.isEmpty()) {
+                this.showToast('Please provide a signature first.', 'error');
+                return;
+            }
+            this.signatureData = this.signaturePad.toDataURL();
+            this.showToast('Signature saved!', 'success');
+        },
+        handleSignatureUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.signatureData = e.target.result;
+                    this.showToast('Signature uploaded!', 'success');
+                };
+                reader.readAsDataURL(file);
+            }
+        },
+        async signPdf() {
+            if (!this.signFile) {
+                this.showToast('Please select a PDF to sign.', 'error');
+                return;
+            }
+            if (!this.signatureData) {
+                this.showToast('Please provide a signature.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.showToast('Signing PDF...', 'info');
+
+            try {
+                const { PDFDocument, rgb } = PDFLib;
+                const arrayBuffer = await this.signFile.file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+                const signatureImage = await pdfDoc.embedPng(this.signatureData);
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+
+                firstPage.drawImage(signatureImage, {
+                    x: firstPage.getWidth() / 2 - 100,
+                    y: firstPage.getHeight() / 2 - 50,
+                    width: 200,
+                    height: 100,
+                });
+
+                const pdfBytes = await pdfDoc.save();
+                saveAs(new Blob([pdfBytes], { type: 'application/pdf' }), `signed_${this.signFile.name}`);
+                this.showToast('PDF signed successfully!', 'success');
+            } catch (error) {
+                console.error("Error signing PDF:", error);
+                this.showToast('Failed to sign PDF.', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+        async unlockPdf() {
+            if (!this.unlockFile) {
+                this.showToast('Please select a PDF to unlock.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.showToast('Unlocking PDF...', 'info');
+
+            const formData = new FormData();
+            formData.append('file', this.unlockFile.file);
+            formData.append('password', this.unlockPassword);
+
+            try {
+                const response = await fetch('/unlock', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    saveAs(blob, `unlocked_${this.unlockFile.name}`);
+                    this.showToast('PDF unlocked successfully!', 'success');
+                } else {
+                    this.showToast('Failed to unlock PDF.', 'error');
+                }
+            } catch (error) {
+                console.error("Error unlocking PDF:", error);
+                this.showToast('Failed to unlock PDF.', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+        async compressPdf() {
+            if (!this.compressFile) {
+                this.showToast('Please select a PDF to compress.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.showToast('Compressing PDF...', 'info');
+
+            const formData = new FormData();
+            formData.append('file', this.compressFile.file);
+
+            try {
+                const response = await fetch('/compress', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    saveAs(blob, `compressed_${this.compressFile.name}`);
+                    this.showToast('PDF compressed successfully!', 'success');
+                } else {
+                    this.showToast('Failed to compress PDF.', 'error');
+                }
+            } catch (error) {
+                console.error("Error compressing PDF:", error);
+                this.showToast('Failed to compress PDF.', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        },
+        async convertPdf() {
+            if (!this.convertFile) {
+                this.showToast('Please select a file to convert.', 'error');
+                return;
+            }
+
+            this.isProcessing = true;
+            this.showToast('Converting file...', 'info');
+
+            const formData = new FormData();
+            formData.append('file', this.convertFile.file);
+            formData.append('conversionType', this.conversionType);
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    let extension = this.conversionType.split('-')[2];
+                    if (extension === 'word') {
+                        extension = 'docx';
+                    }
+                    const newName = this.convertFile.name.split('.')[0] + '.' + extension;
+                    saveAs(blob, `converted_${newName}`);
+                    this.showToast('File converted successfully!', 'success');
+                } else {
+                    this.showToast('Failed to convert file.', 'error');
+                }
+            } catch (error) {
+                console.error("Error converting file:", error);
+                this.showToast('Failed to convert file.', 'error');
+            } finally {
+                this.isProcessing = false;
+            }
+        }
     }));
 });
 
