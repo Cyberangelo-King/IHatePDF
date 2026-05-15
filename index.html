@@ -114,12 +114,33 @@
             </div>
 
             <!-- Merge Controls -->
-            <div x-show="mergeFiles.length > 0" class="flex flex-col sm:flex-row items-center justify-between mt-8 bg-gray-50 p-6 rounded-lg shadow-inner">
-                <div class="flex-grow mb-4 sm:mb-0 sm:mr-4">
-                    <label for="merge-filename" class="block text-sm font-medium text-gray-700 mb-2">Merged Filename</label>
-                    <input type="text" id="merge-filename" x-model="mergedFilename"
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base"
-                        placeholder="e.g., my-merged-document.pdf">
+            <div x-show="mergeFiles.length > 0" class="flex flex-col mt-8 bg-gray-50 p-6 rounded-lg shadow-inner gap-6">
+                <div class="flex flex-col lg:flex-row lg:items-end gap-4">
+                    <div class="flex-grow">
+                        <label for="merge-filename" class="block text-sm font-medium text-gray-700 mb-2">Merged Filename</label>
+                        <input type="text" id="merge-filename" x-model="mergedFilename"
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base"
+                            placeholder="e.g., my-merged-document.pdf">
+                    </div>
+                    <div class="w-full lg:w-64">
+                        <label for="mortgage-preset" class="block text-sm font-medium text-gray-700 mb-2">Mortgage Preset</label>
+                        <select id="mortgage-preset" x-model="mortgageDocOrderPreset" @change="applyMortgageOrderPreset()"
+                            class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base">
+                            <option value="default">Default</option>
+                            <option value="current">Current (with overrides)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="mortgage-overrides" class="block text-sm font-medium text-gray-700 mb-2">Custom Keyword Overrides (optional)</label>
+                    <textarea id="mortgage-overrides" x-model="mortgageKeywordOverridesText" rows="3"
+                        class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-base"
+                        placeholder="Format: Document Name: keyword 1, keyword 2"></textarea>
+                    <p class="text-xs text-gray-500 mt-2">Example: National Id: govt id, nationalid</p>
+                    <div class="flex gap-2 mt-3">
+                        <button @click="saveMortgageKeywordOverrides()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-3 rounded-lg text-sm">Save Overrides</button>
+                        <button @click="clearMortgageKeywordOverrides()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm">Clear Overrides</button>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3">
                     <button @click="sortForMortgage()" :disabled="isProcessing || mergeFiles.length === 0"
