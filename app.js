@@ -16,6 +16,7 @@ document.addEventListener('alpine:init', () => {
         toasts: [],
         toastIdCounter: 0,
         selectedImages: [],
+        extractionRunToken: 0,
         draggingIndex: null,
         dragOverIndex: null,
         showOnboarding: false,
@@ -271,12 +272,22 @@ document.addEventListener('alpine:init', () => {
             this.mergeFiles = [];
             this.mergedFilename = 'merged-documents-' + new Date().getFullYear() + '.pdf';
         },
+        finalizeExtraction(runToken) {
+            if (runToken !== this.extractionRunToken) {
+                return false;
+            }
+            this.isProcessing = false;
+            this.processingProgress = 0;
+            return true;
+        },
         async extractImages() {
             if (!this.extractFile) {
                 this.extractedImages = [];
                 this.selectedImages = [];
                 return;
             }
+            const runToken = ++this.extractionRunToken;
+            const extractionFileId = this.extractFile.id;
             this.isProcessing = true;
             this.processingProgress = 0;
             this.extractedImages = [];
@@ -284,15 +295,20 @@ document.addEventListener('alpine:init', () => {
             this.showToast('Extracting images...', 'info', 5000);
             try {
                 const fileReader = new FileReader();
-                fileReader.readAsArrayBuffer(this.extractFile.file);
                 fileReader.onload = async (e) => {
                     let pdf = null;
                     try {
+                        if (runToken !== this.extractionRunToken || !this.extractFile || this.extractFile.id !== extractionFileId) {
+                            return;
+                        }
                         pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                         const numPages = pdf.numPages;
                         const scale = parseFloat(this.imageQuality);
                         let completedPages = 0;
                         for (let i = 1; i <= numPages; i++) {
+                            if (runToken !== this.extractionRunToken || !this.extractFile || this.extractFile.id !== extractionFileId) {
+                                return;
+                            }
                             const page = await pdf.getPage(i);
                             const viewport = page.getViewport({ scale: scale });
                             const canvas = document.createElement('canvas');
@@ -308,25 +324,35 @@ document.addEventListener('alpine:init', () => {
                         }
                         this.showToast('Images extracted successfully!', 'success');
                     } catch (error) {
-                        console.error("Error extracting images:", error);
-                        let errorMessage = 'An unexpected error occurred during image extraction.';
-                        if (error.message.includes('password-protected')) {
-                            errorMessage = 'This PDF is password-protected and images cannot be extracted.';
-                        } else if (error.message.includes('corrupted')) {
-                            errorMessage = 'This PDF is corrupted or invalid.';
+                        if (runToken === this.extractionRunToken) {
+                            console.error("Error extracting images:", error);
+                            let errorMessage = 'An unexpected error occurred during image extraction.';
+                            if (error.message.includes('password-protected')) {
+                                errorMessage = 'This PDF is password-protected and images cannot be extracted.';
+                            } else if (error.message.includes('corrupted')) {
+                                errorMessage = 'This PDF is corrupted or invalid.';
+                            }
+                            this.showToast(`Failed to extract images: ${errorMessage}`, 'error');
                         }
-                        this.showToast(`Failed to extract images: ${errorMessage}`, 'error');
                     } finally {
                         if (pdf) {
                             pdf.destroy();
                         }
+                        this.finalizeExtraction(runToken);
                     }
                 };
+                fileReader.onerror = () => {
+                    if (runToken === this.extractionRunToken) {
+                        console.error("Error reading PDF file for extraction:", fileReader.error);
+                        this.showToast('Failed to read PDF file for extraction.', 'error');
+                    }
+                    this.finalizeExtraction(runToken);
+                };
+                fileReader.readAsArrayBuffer(this.extractFile.file);
             } catch (error) {
-                console.error("Error reading PDF file for extraction:", error);
-                this.showToast('Failed to read PDF file for extraction.', 'error');
-                this.isProcessing = false;
-                this.processingProgress = 0;
+                console.error("Error preparing PDF extraction:", error);
+                this.showToast('Failed to prepare PDF file for extraction.', 'error');
+                this.finalizeExtraction(runToken);
             }
         },
         toggleImageSelection(imageId, event) {
