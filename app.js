@@ -271,6 +271,57 @@ document.addEventListener('alpine:init', () => {
             this.mergeFiles = [];
             this.mergedFilename = 'merged-documents-' + new Date().getFullYear() + '.pdf';
         },
+        async extractImageObject(page, objectName, pageIndex, imageIndex, baseName) {
+            const OPS = pdfjsLib.OPS || {};
+            const imageObject = await new Promise((resolve) => page.objs.get(objectName, resolve));
+            if (!imageObject) {
+                return null;
+            }
+            const imageFromSrc = imageObject.src;
+            if (typeof imageFromSrc === 'string' && imageFromSrc.startsWith('data:image/')) {
+                const extension = imageFromSrc.includes('image/jpeg') ? 'jpg' : 'png';
+                const filename = `${baseName}_page_${pageIndex}_img_${imageIndex}.${extension}`;
+                return { id: crypto.randomUUID(), url: imageFromSrc, filename };
+            }
+            if (!(imageObject.data instanceof Uint8Array || imageObject.data instanceof Uint8ClampedArray)) {
+                return null;
+            }
+            const width = imageObject.width;
+            const height = imageObject.height;
+            if (!width || !height) {
+                return null;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d');
+            const rawData = imageObject.data;
+            const rgba = new Uint8ClampedArray(width * height * 4);
+            if (imageObject.kind === OPS.ImageKind?.RGB_24BPP || imageObject.kind === 2) {
+                for (let srcIndex = 0, destIndex = 0; srcIndex < rawData.length; srcIndex += 3, destIndex += 4) {
+                    rgba[destIndex] = rawData[srcIndex];
+                    rgba[destIndex + 1] = rawData[srcIndex + 1];
+                    rgba[destIndex + 2] = rawData[srcIndex + 2];
+                    rgba[destIndex + 3] = 255;
+                }
+            } else if (imageObject.kind === OPS.ImageKind?.RGBA_32BPP || imageObject.kind === 3) {
+                rgba.set(rawData);
+            } else if (imageObject.kind === OPS.ImageKind?.GRAYSCALE_1BPP || imageObject.kind === 1) {
+                for (let i = 0; i < width * height; i++) {
+                    const value = rawData[i];
+                    const dest = i * 4;
+                    rgba[dest] = value;
+                    rgba[dest + 1] = value;
+                    rgba[dest + 2] = value;
+                    rgba[dest + 3] = 255;
+                }
+            } else {
+                return null;
+            }
+            context.putImageData(new ImageData(rgba, width, height), 0, 0);
+            const filename = `${baseName}_page_${pageIndex}_img_${imageIndex}.png`;
+            return { id: crypto.randomUUID(), url: canvas.toDataURL('image/png'), filename };
+        },
         async extractImages() {
             if (!this.extractFile) {
                 this.extractedImages = [];
@@ -281,7 +332,7 @@ document.addEventListener('alpine:init', () => {
             this.processingProgress = 0;
             this.extractedImages = [];
             this.selectedImages = [];
-            this.showToast('Extracting images...', 'info', 5000);
+            this.showToast('Extracting embedded images (with page-render fallback)...', 'info', 5000);
             try {
                 const fileReader = new FileReader();
                 fileReader.readAsArrayBuffer(this.extractFile.file);
@@ -291,22 +342,50 @@ document.addEventListener('alpine:init', () => {
                         pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                         const numPages = pdf.numPages;
                         const scale = parseFloat(this.imageQuality);
+                        const baseName = this.extractFile.name.replace('.pdf', '');
                         let completedPages = 0;
+                        let foundEmbeddedImages = false;
                         for (let i = 1; i <= numPages; i++) {
                             const page = await pdf.getPage(i);
-                            const viewport = page.getViewport({ scale: scale });
-                            const canvas = document.createElement('canvas');
-                            const context = canvas.getContext('2d');
-                            canvas.height = viewport.height;
-                            canvas.width = viewport.width;
-                            await page.render({ canvasContext: context, viewport: viewport }).promise;
-                            const imageUrl = canvas.toDataURL('image/png');
-                            const filename = `${this.extractFile.name.replace('.pdf', '')}_page_${i}.png`;
-                            this.extractedImages.push({ id: crypto.randomUUID(), url: imageUrl, filename: filename });
+                            const operatorList = await page.getOperatorList();
+                            const imageNames = [];
+                            for (let idx = 0; idx < operatorList.fnArray.length; idx++) {
+                                const fn = operatorList.fnArray[idx];
+                                const args = operatorList.argsArray[idx];
+                                if ((fn === pdfjsLib.OPS.paintImageXObject || fn === pdfjsLib.OPS.paintJpegXObject) && args?.[0]) {
+                                    imageNames.push(args[0]);
+                                }
+                            }
+                            const uniqueNames = [...new Set(imageNames)];
+                            for (let imageIndex = 0; imageIndex < uniqueNames.length; imageIndex++) {
+                                const extractedImage = await this.extractImageObject(page, uniqueNames[imageIndex], i, imageIndex + 1, baseName);
+                                if (extractedImage) {
+                                    this.extractedImages.push(extractedImage);
+                                    foundEmbeddedImages = true;
+                                }
+                            }
                             completedPages++;
                             this.processingProgress = (completedPages / numPages) * 100;
                         }
-                        this.showToast('Images extracted successfully!', 'success');
+                        if (!foundEmbeddedImages) {
+                            this.extractedImages = [];
+                            for (let i = 1; i <= numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const viewport = page.getViewport({ scale: scale });
+                                const canvas = document.createElement('canvas');
+                                const context = canvas.getContext('2d');
+                                canvas.height = viewport.height;
+                                canvas.width = viewport.width;
+                                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                                const imageUrl = canvas.toDataURL('image/png');
+                                const filename = `${baseName}_page_${i}.png`;
+                                this.extractedImages.push({ id: crypto.randomUUID(), url: imageUrl, filename: filename });
+                                this.processingProgress = (i / numPages) * 100;
+                            }
+                            this.showToast('No embedded image objects were found. Used full-page render fallback.', 'warning', 6000);
+                        } else {
+                            this.showToast('Embedded images extracted successfully!', 'success');
+                        }
                     } catch (error) {
                         console.error("Error extracting images:", error);
                         let errorMessage = 'An unexpected error occurred during image extraction.';
@@ -320,6 +399,8 @@ document.addEventListener('alpine:init', () => {
                         if (pdf) {
                             pdf.destroy();
                         }
+                        this.isProcessing = false;
+                        this.processingProgress = 0;
                     }
                 };
             } catch (error) {
