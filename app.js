@@ -26,26 +26,13 @@ document.addEventListener('alpine:init', () => {
             { title: '✨ Merge & Extract', description: 'Click the "Merge PDFs" button to combine them, or switch to "Extract Images" to get all images from a PDF.', animation: '<i class="fas fa-file-pdf text-6xl text-indigo-500"></i><i class="fas fa-arrow-right text-4xl text-gray-400 mx-4"></i><i class="fas fa-file-image text-6xl text-emerald-500"></i>' },
             { title: '✅ All Done!', description: 'Your processed files will be ready for instant download. Enjoy a seamless PDF experience!', animation: '<i class="fas fa-check-circle text-6xl text-green-500"></i>' }
         ],
-        mortgageDocumentOrder: [
-            { name: "Application letter", keywords: ["application", "letter", "application letter"] },
-            { name: "Letter of Introduction", keywords: ["introduction letter", "intro letter", "intro", "letter of introduction"] },
-            { name: "National Id", keywords: ["national id", "id card", "nin", "national identity"] },
-            { name: "PMI account statement", keywords: ["pmi statement", "pmi account", "pmi account statement"] },
-            { name: "PMI offer letter", keywords: ["pmi offer", "pmi offer letter"] },
-            { name: "Property offer letter", keywords: ["property offer", "property offer letter"] },
-            { name: "Verification of property", keywords: ["property verification", "verification of property"] },
-            { name: "Consent form", keywords: ["consent form", "consent"] },
-            { name: "RSA holder indemnity", keywords: ["rsa indemnity", "rsa holder indemnity", "rsa holder"] },
-            { name: "PMI indemnity", keywords: ["pmi indemnity"] },
-            { name: "Valuation", keywords: ["valuation report", "valuation"] },
-            { name: "Property Insurance", keywords: ["property insurance", "house insurance", "building insurance"] },
-            { name: "Life insurance", keywords: ["life insurance"] },
-            { name: "Confirmation of availability", keywords: ["availability confirmation", "confirmation of availability"] },
-            { name: "C of O (property title)", keywords: ["c of o", "cofo", "certificate of occupancy", "property title", "title document"] },
-            { name: "Confirmation of title", keywords: ["title confirmation", "confirmation of title"] },
-            { name: "Expression of disbursement", keywords: ["disbursement expression", "disbursement", "expression of disbursement"] }
-        ],
-        init() {
+        mortgageDocOrderPreset: 'default',
+        mortgageDocumentOrderDefault: [],
+        mortgageDocumentOrderCurrent: [],
+        mortgageKeywordOverridesText: '',
+        async init() {
+            await this.loadMortgageDocumentConfig();
+            this.loadMortgageOrderPreferences();
             if (!localStorage.getItem('ihatepdf_onboarding_completed')) {
                 this.showOnboarding = true;
             }
@@ -396,6 +383,78 @@ document.addEventListener('alpine:init', () => {
                 this.processingProgress = 0;
             }
         },
+        async loadMortgageDocumentConfig() {
+            try {
+                const response = await fetch('config/mortgage-doc-order.json');
+                if (!response.ok) {
+                    throw new Error(`Failed to load mortgage config (${response.status})`);
+                }
+                const config = await response.json();
+                if (!Array.isArray(config)) {
+                    throw new Error('Mortgage document config must be an array.');
+                }
+                this.mortgageDocumentOrderDefault = config;
+                this.mortgageDocumentOrderCurrent = config;
+            } catch (error) {
+                console.error('Error loading mortgage document order config:', error);
+                this.showToast('Could not load mortgage sort config.', 'error');
+                this.mortgageDocumentOrderDefault = [];
+                this.mortgageDocumentOrderCurrent = [];
+            }
+        },
+        loadMortgageOrderPreferences() {
+            const savedPreset = localStorage.getItem('ihatepdf_mortgage_order_preset');
+            const savedOverrides = localStorage.getItem('ihatepdf_mortgage_keyword_overrides');
+            if (savedOverrides) {
+                this.mortgageKeywordOverridesText = savedOverrides;
+            }
+            if (savedPreset === 'current') {
+                this.mortgageDocOrderPreset = 'current';
+            }
+            this.applyMortgageOrderPreset();
+        },
+        applyMortgageOrderPreset() {
+            const defaultOrder = [...this.mortgageDocumentOrderDefault];
+            if (this.mortgageDocOrderPreset === 'default') {
+                this.mortgageDocumentOrderCurrent = defaultOrder;
+            } else {
+                this.mortgageDocumentOrderCurrent = this.applyKeywordOverrides(defaultOrder, this.mortgageKeywordOverridesText);
+            }
+            localStorage.setItem('ihatepdf_mortgage_order_preset', this.mortgageDocOrderPreset);
+            this.showToast(`Mortgage preset set to ${this.mortgageDocOrderPreset}.`, 'info');
+        },
+        saveMortgageKeywordOverrides() {
+            localStorage.setItem('ihatepdf_mortgage_keyword_overrides', this.mortgageKeywordOverridesText);
+            if (this.mortgageDocOrderPreset === 'current') {
+                this.applyMortgageOrderPreset();
+            }
+            this.showToast('Mortgage keyword overrides saved.', 'success');
+        },
+        clearMortgageKeywordOverrides() {
+            this.mortgageKeywordOverridesText = '';
+            localStorage.removeItem('ihatepdf_mortgage_keyword_overrides');
+            if (this.mortgageDocOrderPreset === 'current') {
+                this.applyMortgageOrderPreset();
+            }
+            this.showToast('Mortgage keyword overrides cleared.', 'info');
+        },
+        applyKeywordOverrides(baseOrder, overridesText) {
+            const overrides = {};
+            const lines = (overridesText || '').split(/\r?\n/);
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || !trimmed.includes(':')) continue;
+                const [docName, keywordCsv] = trimmed.split(':');
+                const normalizedName = docName.trim().toLowerCase();
+                const keywords = keywordCsv.split(',').map(k => k.trim()).filter(Boolean);
+                if (normalizedName && keywords.length) overrides[normalizedName] = keywords;
+            }
+            return baseOrder.map(doc => {
+                const overrideKeywords = overrides[doc.name.toLowerCase()];
+                if (!overrideKeywords) return doc;
+                return { ...doc, keywords: [...new Set([...doc.keywords, ...overrideKeywords])] };
+            });
+        },
         sortForMortgage() {
             if (this.mergeFiles.length === 0) {
                 this.showToast('Please upload PDFs to sort first.', 'error');
@@ -409,7 +468,7 @@ document.addEventListener('alpine:init', () => {
             const foundDocuments = [];
             const notFoundDocuments = [];
             const normalizeName = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-            for (const mortgageDoc of this.mortgageDocumentOrder) {
+            for (const mortgageDoc of this.mortgageDocumentOrderCurrent) {
                 let foundMatch = false;
                 for (let i = 0; i < unmatchedFiles.length; i++) {
                     const uploadedFileName = normalizeName(unmatchedFiles[i].name);

@@ -1,0 +1,19 @@
+[
+  { "name": "Application letter", "keywords": ["application", "letter", "application letter"] },
+  { "name": "Letter of Introduction", "keywords": ["introduction letter", "intro letter", "intro", "letter of introduction"] },
+  { "name": "National Id", "keywords": ["national id", "id card", "nin", "national identity"] },
+  { "name": "PMI account statement", "keywords": ["pmi statement", "pmi account", "pmi account statement"] },
+  { "name": "PMI offer letter", "keywords": ["pmi offer", "pmi offer letter"] },
+  { "name": "Property offer letter", "keywords": ["property offer", "property offer letter"] },
+  { "name": "Verification of property", "keywords": ["property verification", "verification of property"] },
+  { "name": "Consent form", "keywords": ["consent form", "consent"] },
+  { "name": "RSA holder indemnity", "keywords": ["rsa indemnity", "rsa holder indemnity", "rsa holder"] },
+  { "name": "PMI indemnity", "keywords": ["pmi indemnity"] },
+  { "name": "Valuation", "keywords": ["valuation report", "valuation"] },
+  { "name": "Property Insurance", "keywords": ["property insurance", "house insurance", "building insurance"] },
+  { "name": "Life insurance", "keywords": ["life insurance"] },
+  { "name": "Confirmation of availability", "keywords": ["availability confirmation", "confirmation of availability"] },
+  { "name": "C of O (property title)", "keywords": ["c of o", "cofo", "certificate of occupancy", "property title", "title document"] },
+  { "name": "Confirmation of title", "keywords": ["title confirmation", "confirmation of title"] },
+  { "name": "Expression of disbursement", "keywords": ["disbursement expression", "disbursement", "expression of disbursement"] }
+]
