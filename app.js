@@ -141,6 +141,7 @@ document.addEventListener('alpine:init', () => {
                     this.showToast('Please select only one PDF for image extraction.', 'error');
                     return;
                 }
+                this.revokeExtractedImageUrls();
                 this.extractFile = { id: crypto.randomUUID(), name: pdfFiles[0].name, file: pdfFiles[0] };
                 this.extractedImages = [];
                 this.selectedImages = [];
@@ -184,7 +185,15 @@ document.addEventListener('alpine:init', () => {
                 this.showToast('PDF removed.', 'info');
             }
         },
+        revokeExtractedImageUrls() {
+            this.extractedImages.forEach(image => {
+                if (image?.url) {
+                    URL.revokeObjectURL(image.url);
+                }
+            });
+        },
         clearExtractFile() {
+            this.revokeExtractedImageUrls();
             this.extractFile = null;
             this.extractedImages = [];
             this.selectedImages = [];
@@ -279,6 +288,7 @@ document.addEventListener('alpine:init', () => {
             }
             this.isProcessing = true;
             this.processingProgress = 0;
+            this.revokeExtractedImageUrls();
             this.extractedImages = [];
             this.selectedImages = [];
             this.showToast('Extracting images...', 'info', 5000);
@@ -300,9 +310,25 @@ document.addEventListener('alpine:init', () => {
                             canvas.height = viewport.height;
                             canvas.width = viewport.width;
                             await page.render({ canvasContext: context, viewport: viewport }).promise;
-                            const imageUrl = canvas.toDataURL('image/png');
+                            const blob = await new Promise((resolve, reject) => {
+                                canvas.toBlob((generatedBlob) => {
+                                    if (generatedBlob) {
+                                        resolve(generatedBlob);
+                                    } else {
+                                        reject(new Error('Failed to generate image blob from canvas.'));
+                                    }
+                                }, 'image/png');
+                            });
+                            const imageUrl = URL.createObjectURL(blob);
                             const filename = `${this.extractFile.name.replace('.pdf', '')}_page_${i}.png`;
-                            this.extractedImages.push({ id: crypto.randomUUID(), url: imageUrl, filename: filename });
+                            this.extractedImages.push({
+                                id: crypto.randomUUID(),
+                                url: imageUrl,
+                                filename: filename,
+                                blob: blob,
+                                size: blob.size,
+                                type: blob.type
+                            });
                             completedPages++;
                             this.processingProgress = (completedPages / numPages) * 100;
                         }
@@ -376,10 +402,8 @@ document.addEventListener('alpine:init', () => {
                 let completedImages = 0;
                 for (const imageId of this.selectedImages) {
                     const image = this.extractedImages.find(img => img.id === imageId);
-                    if (image) {
-                        const response = await fetch(image.url);
-                        const blob = await response.blob();
-                        zip.file(image.filename, blob);
+                    if (image && image.blob) {
+                        zip.file(image.filename, image.blob);
                         completedImages++;
                         this.processingProgress = (completedImages / this.selectedImages.length) * 100;
                     }
